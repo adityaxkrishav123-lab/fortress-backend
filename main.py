@@ -142,6 +142,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Humanitarian Logistics Fortress API v2.0 - LIVE", "status": "READY"}
+
+@app.get("/api/v1")
+async def api_root():
+    return {"message": "Fortress API v1 root", "status": "ACTIVE"}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # REGISTER ROUTERS
