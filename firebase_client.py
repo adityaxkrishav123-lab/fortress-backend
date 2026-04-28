@@ -36,17 +36,15 @@ class FirebaseClient:
         json_creds = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
         if json_creds:
             try:
-                # Remove extra quotes or whitespace that might come from pasting
                 json_creds = json_creds.strip().strip("'").strip('"')
                 cred_dict = json.loads(json_creds)
                 
-                # Robust fix for private key newlines
                 if "private_key" in cred_dict:
                     pk = cred_dict["private_key"]
-                    # Handle both literal newlines and escaped newlines
+                    # Ultra-aggressive fix: replace literal \n and escaped \\n
                     pk = pk.replace("\\n", "\n")
-                    if "-----BEGIN PRIVATE KEY-----" not in pk:
-                        logger.error("Private key is missing headers!")
+                    # Remove any extra quotes or spaces inside the key
+                    pk = pk.strip().replace('"', "").replace("'", "")
                     cred_dict["private_key"] = pk
                 
                 cred = credentials.Certificate(cred_dict)
@@ -59,26 +57,29 @@ class FirebaseClient:
             except Exception as e:
                 logger.error(f"Failed to initialize Firebase from JSON Env: {e}")
 
-        # 2. Fall back to local files
+        # 2. Fall back to local files (But fix them too!)
         config_path = None
         for candidate in ["serviceAccountKey.json", "service-account.json"]:
             if os.path.exists(candidate):
                 config_path = candidate
                 break
         
-        if not config_path:
-            config_path = os.environ.get("FIREBASE_CONFIG_PATH") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        
         if config_path and os.path.exists(config_path):
             try:
-                cred = credentials.Certificate(config_path)
+                # NEW: Read the file and fix it before passing to credentials
+                with open(config_path, "r") as f:
+                    data = json.load(f)
+                    if "private_key" in data:
+                        data["private_key"] = data["private_key"].replace("\\n", "\n")
+                    cred = credentials.Certificate(data)
+                
                 if not firebase_admin._apps:
                     firebase_admin.initialize_app(cred)
                 self._db = firestore.client()
                 self._is_mock = False
-                logger.info("🔥 Firebase initialized from file. Database is LIVE.")
+                logger.info("🔥 Firebase initialized from fixed file. Database is LIVE.")
             except Exception as e:
-                logger.error(f"Failed to initialize Firebase from file: {e}")
+                logger.error(f"Failed to initialize Firebase from fixed file: {e}")
                 self._is_mock = True
         else:
             logger.warning("No Firebase credentials found. Running in MOCK MODE.")
