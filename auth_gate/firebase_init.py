@@ -25,35 +25,42 @@ logger = logging.getLogger("auth_gate.firebase")
 
 def init_firebase() -> firestore_async.AsyncClient:
     """
-    Initialize the Firebase Admin SDK (idempotent — safe to call multiple times).
-
-    Priority order for credentials:
-      1. GOOGLE_APPLICATION_CREDENTIALS env var (path to JSON file) — local dev
-      2. FIREBASE_SERVICE_ACCOUNT_JSON env var (raw JSON string) — CI / secrets manager
-
-    Returns:
-        An async Firestore client connected to your project.
+    Initialize the Firebase Admin SDK with aggressive private key repair.
     """
     if not firebase_admin._apps:
-        # Option 1: path to service-account file
-        sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if sa_path and os.path.exists(sa_path):
-            cred = credentials.Certificate(sa_path)
-            logger.info("Firebase: loaded credentials from file: %s", sa_path)
+        # Priority 1: FIREBASE_SERVICE_ACCOUNT_JSON (Secrets Manager / Render Env)
+        sa_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+        if sa_json:
+            try:
+                sa_json = sa_json.strip().strip("'").strip('"')
+                sa_dict = json.loads(sa_json)
+                if "private_key" in sa_dict:
+                    sa_dict["private_key"] = sa_dict["private_key"].replace("\\n", "\n").strip().replace('"', "").replace("'", "")
+                
+                cred = credentials.Certificate(sa_dict)
+                firebase_admin.initialize_app(cred)
+                logger.info("Firebase: loaded credentials from fixed FIREBASE_SERVICE_ACCOUNT_JSON")
+            except Exception as e:
+                logger.error("Failed to load Firebase from Env: %s", e)
+                raise
 
-        # Option 2: raw JSON in env var (for containerised deployments)
+        # Priority 2: local file
         else:
-            sa_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
-            if not sa_json:
-                raise EnvironmentError(
-                    "Firebase credentials not found. "
-                    "Set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT_JSON."
-                )
-            sa_dict = json.loads(sa_json)
-            cred = credentials.Certificate(sa_dict)
-            logger.info("Firebase: loaded credentials from FIREBASE_SERVICE_ACCOUNT_JSON env var")
-
-        firebase_admin.initialize_app(cred)
+            sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or "./service-account.json"
+            if sa_path and os.path.exists(sa_path):
+                try:
+                    with open(sa_path, "r") as f:
+                        data = json.load(f)
+                        if "private_key" in data:
+                            data["private_key"] = data["private_key"].replace("\\n", "\n").strip()
+                        cred = credentials.Certificate(data)
+                        firebase_admin.initialize_app(cred)
+                        logger.info("Firebase: loaded and FIXED credentials from file: %s", sa_path)
+                except Exception as e:
+                    logger.error("Failed to load Firebase from file %s: %s", sa_path, e)
+                    raise
+            else:
+                raise EnvironmentError("No Firebase credentials found in Env or File.")
 
     db: firestore_async.AsyncClient = firestore_async.client()
     logger.info("Firestore async client ready")
