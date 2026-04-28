@@ -36,10 +36,18 @@ class FirebaseClient:
         json_creds = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
         if json_creds:
             try:
+                # Remove extra quotes or whitespace that might come from pasting
+                json_creds = json_creds.strip().strip("'").strip('"')
                 cred_dict = json.loads(json_creds)
-                # Fix for common newline mangling in env vars
+                
+                # Robust fix for private key newlines
                 if "private_key" in cred_dict:
-                    cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+                    pk = cred_dict["private_key"]
+                    # Handle both literal newlines and escaped newlines
+                    pk = pk.replace("\\n", "\n")
+                    if "-----BEGIN PRIVATE KEY-----" not in pk:
+                        logger.error("Private key is missing headers!")
+                    cred_dict["private_key"] = pk
                 
                 cred = credentials.Certificate(cred_dict)
                 if not firebase_admin._apps:
