@@ -10,3 +10,5 @@ pandas
 python-json-logger
 cryptography
 firebase-admin
+passlib[argon2]
+argon2-cffi
