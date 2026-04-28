@@ -32,7 +32,26 @@ class FirebaseClient:
             logger.warning("Firebase Admin SDK not installed. Running in MOCK MODE.")
             return
 
-        # Look for local files first (Hackathon Mode), then fall back to env vars
+        # 1. Check for JSON string in Environment Variable (Best for Render/Cloud)
+        json_creds = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+        if json_creds:
+            try:
+                cred_dict = json.loads(json_creds)
+                # Fix for common newline mangling in env vars
+                if "private_key" in cred_dict:
+                    cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+                
+                cred = credentials.Certificate(cred_dict)
+                if not firebase_admin._apps:
+                    firebase_admin.initialize_app(cred)
+                self._db = firestore.client()
+                self._is_mock = False
+                logger.info("🔥 Firebase initialized from Env JSON. Database is LIVE.")
+                return
+            except Exception as e:
+                logger.error(f"Failed to initialize Firebase from JSON Env: {e}")
+
+        # 2. Fall back to local files
         config_path = None
         for candidate in ["serviceAccountKey.json", "service-account.json"]:
             if os.path.exists(candidate):
@@ -45,17 +64,16 @@ class FirebaseClient:
         if config_path and os.path.exists(config_path):
             try:
                 cred = credentials.Certificate(config_path)
-                # Check if already initialized to prevent errors during hot-reloads
                 if not firebase_admin._apps:
                     firebase_admin.initialize_app(cred)
                 self._db = firestore.client()
                 self._is_mock = False
-                logger.info("🔥 Firebase Admin SDK Initialized Successfully. Connected to Global Ledger.")
+                logger.info("🔥 Firebase initialized from file. Database is LIVE.")
             except Exception as e:
-                logger.error(f"Failed to initialize Firebase: {e}")
+                logger.error(f"Failed to initialize Firebase from file: {e}")
                 self._is_mock = True
         else:
-            logger.warning("No FIREBASE_CONFIG_PATH found. Running Firebase Client in MOCK MODE.")
+            logger.warning("No Firebase credentials found. Running in MOCK MODE.")
 
     @property
     def db(self):
