@@ -1,0 +1,56 @@
+Fortress Frontend Implementation Plan (Phases 5-8) - REVISED (SIMPLE UI)
+
+Overview
+This plan focuses on a Serious, Simple, and Functional experience, strictly matching the hand-drawn sketches and the established Teal/Navy design system.
+
+---
+
+Phase 5: The Dashboard Shells (Screens 13 & 16)
+Goal: Establish the role-specific "Home" experience with a Universal Top Bar.
+
+[ ] Universal Top Bar:
+  - Display User's Name and Greeting.
+  - Profile Button/Icon in the top right for all users.
+[ ] Role-Specific Bottom Navigation:
+  - Volunteer: 2 items (Home, Mailbox).
+  - Citizen: 3 items (Home, Mailbox, Raise Request).
+[ ] Notification Indicator: Simple red dot on the Mailbox icon for unread updates.
+[ ] Dashboards: Minimalist content with role-specific greetings in a clean font.
+
+---
+
+Phase 6: The "Raise Request" Flow (Screen 17 - Citizen Only)
+Goal: Create the "Universal Law" request portal for citizens.
+
+[ ] Trigger: Navigating to the "Raise Request" tab in the Bottom Nav.
+[ ] Simple Popup/Form UI: Build the functional form with clear labels.
+  - NGO Type Dropdown.
+  - Subtype Tags Selector (1-5 limit).
+  - Message Field.
+  - Attachment Button (2MB limit).
+[ ] Submission Logic: Connect to POST /api/v1/mailbox/create-request.
+
+---
+
+Phase 7: The Mailboxes & Local Mirror (Screens 14 & 18)
+Goal: Build the communication log with Local Storage persistence.
+
+[ ] Mailbox Framework: Simple list container with high-contrast text.
+[ ] Action Card Placeholders: Leave space for future "Action Card" designs.
+[ ] Hive Local Mirror: 
+  - Integrate Hive for local mirroring of "Answered" cards.
+
+---
+
+Phase 8: Profile & Personalization (Screens 15 & 19)
+Goal: Role-specific profile management and global settings.
+
+[ ] Profile Screen: Accessible from the Universal Top Bar.
+[ ] Settings: Theme Toggle (Light/Dark) and Language Toggle.
+[ ] Citizen Special: Integrate resolve-region utility for live GPS city detection.
+
+---
+
+Notes
+- Theme: Strictly adhere to the Teal/Navy/Gray palette.
+- Tone: Serious and reliable, not "tech-savvy" or flashy.
