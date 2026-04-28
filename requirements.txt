@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+slowapi
+google-generativeai
+python-dotenv
+pandas
+python-json-logger
+cryptography
+firebase-admin

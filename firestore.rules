@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // THE PROJECT POWERHOUSE - FIRESTORE SECURITY RULES
+    // ----------------------------------------------------------------------
+    // Note: The Python FastAPI backend uses the Firebase Admin SDK, which
+    // completely bypasses these rules. These rules exist solely to restrict
+    // access from external clients (like the future Flutter app) trying to
+    // connect directly to Firestore for real-time updates.
+    // ----------------------------------------------------------------------
+
+    // 1. Users Collection
+    // A user can only read and update their own profile document.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create, delete: if false; // Creation handled by backend Auth Gate
+    }
+
+    // 2. Action Cards Collection
+    // Authenticated users can read cards. Only the backend creates/deletes them.
+    match /action_cards/{cardId} {
+      allow read: if request.auth != null;
+      allow write: if false; 
+    }
+
+    // 3. Citizen Requests (Instant Help)
+    // Citizens and NGOs can read. Backend handles creation/updates.
+    match /citizen_requests/{reqId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 4. Session Persistence (Refresh Tokens)
+    // EXTREMELY PRIVATE. Nobody can read or write directly. Backend only.
+    match /refresh_tokens/{tokenId} {
+      allow read, write: if false; 
+    }
+
+    // 5. Inbox Notifications
+    // Users can only read their own notifications. Backend creates them.
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false; 
+    }
+
+    // Fallback: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
